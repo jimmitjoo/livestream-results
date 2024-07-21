@@ -1,4 +1,4 @@
-package db
+package parser
 
 import (
 	"bufio"
