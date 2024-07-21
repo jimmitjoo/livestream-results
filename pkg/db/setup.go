@@ -89,3 +89,14 @@ func createTables(db *sql.DB) {
 
 	fmt.Println("All tables created successfully!")
 }
+
+// InsertTimingResult inserts a TimingResult into the timing_results table
+func InsertTimingResult(db *sql.DB, result TimingResult, eventID int) error {
+	query := `INSERT INTO timing_results (bib_number, event_id, timestamp, antenna_row, antenna, placement)
+              VALUES (?, ?, ?, ?, ?, NULL)`
+	_, err := db.Exec(query, result.BibNumber, eventID, result.Timestamp.Format("2006-01-02 15:04:05.000"), result.AntennaRow, result.Antenna)
+	if err != nil {
+		return fmt.Errorf("error inserting timing result: %w", err)
+	}
+	return nil
+}
