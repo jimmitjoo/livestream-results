@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -66,6 +67,7 @@ func createTables(db *sql.DB) {
         antenna INTEGER,
         placement INTEGER,
         FOREIGN KEY (event_id) REFERENCES events(event_id)
+    	UNIQUE(bib_number, event_id, timestamp)
     );`
 	_, err = db.Exec(timingResultsTable)
 	if err != nil {
@@ -86,8 +88,6 @@ func createTables(db *sql.DB) {
 		fmt.Println("Error creating participant_events table:", err)
 		return
 	}
-
-	fmt.Println("All tables created successfully!")
 }
 
 // InsertTimingResult inserts a TimingResult into the timing_results table
@@ -96,6 +96,10 @@ func InsertTimingResult(db *sql.DB, result TimingResult, eventID int) error {
               VALUES (?, ?, ?, ?, ?, NULL)`
 	_, err := db.Exec(query, result.BibNumber, eventID, result.Timestamp.Format("2006-01-02 15:04:05.000"), result.AntennaRow, result.Antenna)
 	if err != nil {
+		// Check if the error is a UNIQUE constraint violation
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint {
+			return nil // Suppress the error as it is expected
+		}
 		return fmt.Errorf("error inserting timing result: %w", err)
 	}
 	return nil
