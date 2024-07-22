@@ -40,13 +40,16 @@ func createTables(db *sql.DB) error {
 	// Create participants table
 	participantsTable := `CREATE TABLE IF NOT EXISTS participants (
         participant_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id INTEGER NOT NULL,
         bib_number INTEGER NOT NULL,
         first_name TEXT NOT NULL,
         last_name TEXT NOT NULL,
         gender TEXT NOT NULL,
         birthdate TEXT NOT NULL,
         club TEXT,
-        classification TEXT
+        classification TEXT,
+        FOREIGN KEY (event_id) REFERENCES events(event_id),
+    	UNIQUE (bib_number, event_id)
     );`
 	if _, err := db.Exec(participantsTable); err != nil {
 		return fmt.Errorf("error creating participants table: %w", err)
@@ -66,18 +69,6 @@ func createTables(db *sql.DB) error {
     );`
 	if _, err := db.Exec(timingResultsTable); err != nil {
 		return fmt.Errorf("error creating timing_results table: %w", err)
-	}
-
-	// Create participant_events table
-	participantEventsTable := `CREATE TABLE IF NOT EXISTS participant_events (
-        participant_event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        participant_id INTEGER NOT NULL,
-        event_id INTEGER NOT NULL,
-        FOREIGN KEY (participant_id) REFERENCES participants(participant_id),
-        FOREIGN KEY (event_id) REFERENCES events(event_id)
-    );`
-	if _, err := db.Exec(participantEventsTable); err != nil {
-		return fmt.Errorf("error creating participant_events table: %w", err)
 	}
 
 	return nil
