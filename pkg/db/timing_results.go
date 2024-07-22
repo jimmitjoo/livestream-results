@@ -16,6 +16,7 @@ type Participant struct {
 	Birthdate      string
 	Club           string
 	Classification string
+	EventID        int
 }
 
 // GetEventByName retrieves an event by its name
@@ -60,13 +61,22 @@ func InsertParticipant(db *sql.DB, participant Participant, eventID int) error {
 	return nil
 }
 
+func GetParticipantByBibNumber(db *sql.DB, bibNumber int) (Participant, error) {
+	var participant Participant
+	err := db.QueryRow("SELECT event_id, first_name, last_name, birthdate, club FROM participants WHERE bib_number = ?", bibNumber).Scan(&participant.EventID, &participant.FirstName, &participant.LastName, &participant.Birthdate, &participant.Club)
+	if err != nil {
+		return Participant{}, fmt.Errorf("error retrieving participant by bib number: %w", err)
+	}
+
+	return participant, nil
+}
+
 // InsertTimingResult inserts a TimingResult into the timing_results table
-func InsertTimingResult(db *sql.DB, result parser.TimingResult, eventID int) error {
+func InsertTimingResult(db *sql.DB, result parser.TimingResult, participant Participant) error {
 	query := `INSERT INTO timing_results (bib_number, event_id, timestamp, antenna_row, antenna, placement)
               VALUES (?, ?, ?, ?, ?, NULL)`
 
-	fmt.Println(query)
-	_, err := db.Exec(query, result.BibNumber, eventID, result.Timestamp.Format("2006-01-02 15:04:05.000"), result.AntennaRow, result.Antenna)
+	_, err := db.Exec(query, result.BibNumber, participant.EventID, result.Timestamp.Format("2006-01-02 15:04:05.000"), result.AntennaRow, result.Antenna)
 	if err != nil {
 		// Check if the error is a UNIQUE constraint violation
 		var sqliteErr sqlite3.Error

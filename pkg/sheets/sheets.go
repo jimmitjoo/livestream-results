@@ -59,12 +59,6 @@ func (s *SheetsService) UpdateSheet(sheetName string, data [][]interface{}) erro
 		Values: data,
 	}
 
-	fmt.Println("Updating sheet with data:", data)
-	fmt.Println("Sheet ID:", s.SheetID)
-	fmt.Println("Sheet Name:", sheetName)
-	fmt.Println("Range Data:", rangeData)
-	fmt.Println("Value Range:", valueRange)
-
 	_, err := s.Service.Spreadsheets.Get(s.SheetID).Do()
 	if err != nil {
 		return fmt.Errorf("unable to retrieve spreadsheet: %v", err)

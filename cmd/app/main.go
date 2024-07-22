@@ -135,6 +135,34 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 				})
                 .then(response => response.json())
                 .then(data => {
+
+					// Create an html table from the data
+					const table = document.createElement('table');
+					const thead = document.createElement('thead');
+					const tbody = document.createElement('tbody');
+					const headerRow = document.createElement('tr');
+					const headers = ['Bib Number', 'First Name', 'Last Name', 'Club', 'Birthdate', 'Timestamp', 'Placement'];
+					headers.forEach(headerText => {
+						const header = document.createElement('th');
+						header.textContent = headerText;
+						headerRow.appendChild(header);
+					});
+					thead.appendChild(headerRow);
+					table.appendChild(thead);
+
+					data.forEach(row => {
+						const tr = document.createElement('tr');
+						row.forEach(cell => {
+							const td = document.createElement('td');
+							td.textContent = cell;
+							tr.appendChild(td);
+						});
+						tbody.appendChild(tr);
+					});
+					table.appendChild(tbody);
+					document.getElementById('startlista-content').innerHTML = '';
+					document.getElementById('startlista-content').appendChild(table);
+
                     console.log("Everything is set");
                 })
                 .catch(error => {
@@ -346,10 +374,11 @@ func watchFile(filePath string) {
 					continue
 				}
 
-				// Insert parsed results into the database
-				eventID := 1 // Assume an event ID for demonstration purposes
 				for _, result := range results {
-					err := db.InsertTimingResult(database, result, eventID)
+					// Find participant by bib number
+					participant, err := db.GetParticipantByBibNumber(database, result.BibNumber)
+
+					err = db.InsertTimingResult(database, result, participant)
 					if err != nil {
 						log.Printf("Error inserting timing result for bib number %d: %v", result.BibNumber, err)
 					}
@@ -394,10 +423,16 @@ func getNewData() ([][]interface{}, error) {
 		var timestamp string
 		// placement is a nullable column, so we need to use a pointer
 		var placement *int
+
 		if err := rows.Scan(&bibNumber, &timestamp, &placement); err != nil {
 			return nil, fmt.Errorf("error scanning row: %v", err)
 		}
-		data = append(data, []interface{}{bibNumber, timestamp, placement})
+		participant, err := db.GetParticipantByBibNumber(database, bibNumber)
+		if err != nil {
+			return nil, fmt.Errorf("error getting participant by bib number: %v", err)
+		}
+
+		data = append(data, []interface{}{bibNumber, participant.FirstName, participant.LastName, participant.Club, participant.Birthdate, timestamp, placement})
 	}
 
 	if err := rows.Err(); err != nil {
