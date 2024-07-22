@@ -43,137 +43,17 @@ func main() {
 	}
 
 	// Set up HTTP handlers
-	http.HandleFunc("/", uploadHandler)
 	http.HandleFunc("/start-watch", startWatchHandler)
 	http.HandleFunc("/google-sheets", googleSheetsHandler)
 	http.HandleFunc("/read-startlista", readParticipantsHandler)
+	http.HandleFunc("/list-participants", listParticipantsHandler)
+
+	// Serve static files from the frontend directory
+	fs := http.FileServer(http.Dir("./frontend"))
+	http.Handle("/", fs)
 
 	log.Println("Server started at :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
-}
-
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl := `
-    <html>
-    <body>
-		<h1>Primary Event Name</h1>
-		<input type="text" id="eventName" name="eventName"><br><br>
-        <h1>Start Watching Timing Data File</h1>
-        <form id="watch-form">
-            <label for="filePath">Timing Data File Path:</label><br>
-            <input type="text" id="filePath" name="filePath" placeholder="e.g., C:\path\to\file.txt" value="/Users/jimmiejohansson/go/jimmitjoo/livestream-results/path/to/timing_data.txt"><br>
-            <input type="submit" value="Start Watching">
-        </form>
-        <p id="watch-feedback"></p>
-        <h1>Google Sheets Export</h1>
-        <form id="sheets-form">
-            <label for="sheetID">Google Sheets ID:</label><br>
-            <input type="text" id="sheetID" name="sheetID" value="1bRygOoC50s3AZT8lfUpZl2EvWGHfEpEyh-_X-9r6xAc"><br>
-            <label for="sheetName">Flik tider exporteras till:</label><br>
-            <input type="text" id="sheetName" name="sheetName"><br>
-            <input type="submit" value="Submit">
-        </form>
-        <p id="sheets-feedback"></p>
-        <h1>Read Startlista</h1>
-		<form id="read-startlista">
-			<label for="participantsSheetName">Flik startlista hämtas från:</label><br>
-			<input type="text" id="participantsSheetName" name="participantsSheetName"><br>
-			<input type="submit" value="Läs in startlista">
-		</form>
-        <p id="startlista-content"></p>
-
-        <script>
-            document.getElementById('watch-form').addEventListener('submit', function(event) {
-                event.preventDefault();
-                const filePath = document.getElementById('filePath').value;
-                fetch('/start-watch', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ filePath })
-                })
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('watch-feedback').innerText = data;
-                })
-                .catch(error => {
-                    document.getElementById('watch-feedback').innerText = 'Error starting watch: ' + error;
-                });
-            });
-
-            document.getElementById('sheets-form').addEventListener('submit', function(event) {
-                event.preventDefault();
-                const sheetID = document.getElementById('sheetID').value;
-                const sheetName = document.getElementById('sheetName').value;
-                fetch('/google-sheets', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ sheetID, sheetName })
-                })
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('sheets-feedback').innerText = data;
-                })
-                .catch(error => {
-                    document.getElementById('sheets-feedback').innerText = 'Error submitting Google Sheets info: ' + error;
-                });
-            });
-
-			document.getElementById('read-startlista').addEventListener('submit', function() {
-				event.preventDefault();
-                const primaryEventName = document.getElementById('eventName').value;
-                const participantsSheetName = document.getElementById('participantsSheetName').value;
-                fetch('/read-startlista', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({ primaryEventName: primaryEventName, participantsSheetName: participantsSheetName })
-				})
-                .then(response => response.json())
-                .then(data => {
-
-					// Create an html table from the data
-					const table = document.createElement('table');
-					const thead = document.createElement('thead');
-					const tbody = document.createElement('tbody');
-					const headerRow = document.createElement('tr');
-					const headers = ['Bib Number', 'First Name', 'Last Name', 'Club', 'Birthdate', 'Timestamp', 'Placement'];
-					headers.forEach(headerText => {
-						const header = document.createElement('th');
-						header.textContent = headerText;
-						headerRow.appendChild(header);
-					});
-					thead.appendChild(headerRow);
-					table.appendChild(thead);
-
-					data.forEach(row => {
-						const tr = document.createElement('tr');
-						row.forEach(cell => {
-							const td = document.createElement('td');
-							td.textContent = cell;
-							tr.appendChild(td);
-						});
-						tbody.appendChild(tr);
-					});
-					table.appendChild(tbody);
-					document.getElementById('startlista-content').innerHTML = '';
-					document.getElementById('startlista-content').appendChild(table);
-
-                    console.log("Everything is set");
-                })
-                .catch(error => {
-                    document.getElementById('startlista-content').innerText = 'Error reading Startlista: ' + error;
-                });
-            });
-        </script>
-    </body>
-    </html>
-    `
-	fmt.Fprint(w, tmpl)
 }
 
 func startWatchHandler(w http.ResponseWriter, r *http.Request) {
@@ -354,6 +234,19 @@ func readParticipantsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
+func listParticipantsHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Group participants by event
+	participants, err := db.GetParticipants(database)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error getting participants: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(participants)
+}
+
 func watchFile(filePath string) {
 	err := watcher.Add(filePath)
 	if err != nil {
@@ -411,7 +304,7 @@ func watchFile(filePath string) {
 
 func getNewData() ([][]interface{}, error) {
 	// Retrieve new data from the database
-	rows, err := database.Query("SELECT bib_number, timestamp, placement FROM timing_results ORDER BY timestamp DESC LIMIT 100")
+	rows, err := database.Query("SELECT bib_number, timestamp, placement FROM timing_results ORDER BY timestamp ASC LIMIT 10000")
 	if err != nil {
 		return nil, fmt.Errorf("error querying new data: %v", err)
 	}

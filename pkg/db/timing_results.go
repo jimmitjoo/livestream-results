@@ -17,6 +17,26 @@ type Participant struct {
 	Club           string
 	Classification string
 	EventID        int
+	EventName      string
+}
+
+func GetEvents(db *sql.DB) ([]string, error) {
+	rows, err := db.Query("SELECT event_name FROM events")
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []string
+	for rows.Next() {
+		var eventName string
+		if err := rows.Scan(&eventName); err != nil {
+			return nil, fmt.Errorf("error scanning event name: %w", err)
+		}
+		events = append(events, eventName)
+	}
+
+	return events, nil
 }
 
 // GetEventByName retrieves an event by its name
@@ -59,6 +79,57 @@ func InsertParticipant(db *sql.DB, participant Participant, eventID int) error {
 	}
 
 	return nil
+}
+
+func GetParticipants(db *sql.DB) (map[string][]Participant, error) {
+	// participants should be in groups of event name
+	participants := make(map[string][]Participant)
+
+	query := `
+    SELECT 
+        events.event_name AS event_name, 
+        participants.bib_number, 
+        participants.event_id, 
+        participants.first_name, 
+        participants.last_name, 
+        participants.birthdate, 
+        participants.club 
+    FROM participants
+    JOIN events ON events.event_id = participants.event_id
+    `
+
+	fmt.Println("Query:", query)
+	rows, err := db.Query(query)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil, fmt.Errorf("error retrieving participants: %w", err)
+	}
+	defer rows.Close()
+
+	fmt.Println("Rows:", rows)
+
+	// Iterate over the rows and group them based on event name
+	for rows.Next() {
+		fmt.Println("Rows Next")
+		var participant Participant
+		if err := rows.Scan(&participant.EventName, &participant.BibNumber, &participant.EventID, &participant.FirstName, &participant.LastName, &participant.Birthdate, &participant.Club); err != nil {
+			return nil, fmt.Errorf("error scanning participant: %w", err)
+		}
+		// check if the event name already exists in the participants slice
+		if participants[participant.EventName] == nil {
+			participants[participant.EventName] = []Participant{}
+		}
+
+		participants[participant.EventName] = append(participants[participant.EventName], participant)
+	}
+
+	fmt.Println("Participants:", participants)
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error with rows: %w", err)
+	}
+
+	return participants, nil
 }
 
 func GetParticipantByBibNumber(db *sql.DB, bibNumber int) (Participant, error) {
