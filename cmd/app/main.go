@@ -37,7 +37,7 @@ func main() {
 	defer watcher.Close()
 
 	// Set up Google Sheets service
-	sheetsService, err = sheets.NewSheetsService("livestreamresults-a7850f0534de.json", "1bRygOoC50s3AZT8lfUpZl2EvWGHfEpEyh-_X-9r6xAc")
+	sheetsService, err = sheets.NewSheetsService("credentials.json", "1bRygOoC50s3AZT8lfUpZl2EvWGHfEpEyh-_X-9r6xAc")
 	if err != nil {
 		log.Fatalf("Error setting up Google Sheets service: %v", err)
 	}
