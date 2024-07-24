@@ -2,7 +2,6 @@ let fetchParticipants = function (event) {
     fetch('/list-participants')
         .then(response => response.json())
         .then(events => {
-            console.log(events);
             const container = document.createElement('div');
             container.classList.add('inline-block');
             container.classList.add('min-w-full');

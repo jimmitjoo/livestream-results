@@ -98,7 +98,6 @@ func GetParticipants(db *sql.DB) (map[string][]Participant, error) {
     JOIN events ON events.event_id = participants.event_id
     `
 
-	fmt.Println("Query:", query)
 	rows, err := db.Query(query)
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -106,11 +105,8 @@ func GetParticipants(db *sql.DB) (map[string][]Participant, error) {
 	}
 	defer rows.Close()
 
-	fmt.Println("Rows:", rows)
-
 	// Iterate over the rows and group them based on event name
 	for rows.Next() {
-		fmt.Println("Rows Next")
 		var participant Participant
 		if err := rows.Scan(&participant.EventName, &participant.BibNumber, &participant.EventID, &participant.FirstName, &participant.LastName, &participant.Birthdate, &participant.Club); err != nil {
 			return nil, fmt.Errorf("error scanning participant: %w", err)
@@ -122,8 +118,6 @@ func GetParticipants(db *sql.DB) (map[string][]Participant, error) {
 
 		participants[participant.EventName] = append(participants[participant.EventName], participant)
 	}
-
-	fmt.Println("Participants:", participants)
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error with rows: %w", err)
